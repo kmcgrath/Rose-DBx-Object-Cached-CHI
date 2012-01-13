@@ -14,7 +14,7 @@ our @ISA = qw(Rose::DB::Object);
 
 use Rose::DB::Object::Constants qw(STATE_IN_DB);
 
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 our $SETTINGS = undef;
 our $Debug = 0;
 our $USE_IN_SYNC = 0;
@@ -358,7 +358,7 @@ sub __xrdbopriv_get_cache_handle {
 
         my %chi_settings = (
             %$defaults, 
-            (defined %$SETTINGS ? %$SETTINGS : ()), 
+            (%$SETTINGS || ()), 
             %$current_settings
        );
 
