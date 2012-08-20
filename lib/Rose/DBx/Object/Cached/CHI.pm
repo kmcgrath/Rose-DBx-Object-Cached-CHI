@@ -12,9 +12,9 @@ use Rose::DB::Object::Cached;
 
 our @ISA = qw(Rose::DB::Object);
 
-use Rose::DB::Object::Constants qw(STATE_IN_DB);
+use Rose::DB::Object::Constants qw(STATE_IN_DB MODIFIED_COLUMNS);
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 our $SETTINGS = undef;
 our $Debug = 0;
 our $USE_IN_SYNC = 0;
@@ -49,6 +49,9 @@ sub remember
   my $safe_obj = $self->__xrdbopriv_clone->__xrdbopriv_strip;  ## Strip has been fixed so that all CODE REFs are gone
                                                                ## but keeping the clone here so we don't mess with the
                                                                ## object the developer is currently working with
+
+  my %orig_modified = $self->{MODIFIED_COLUMNS()} ? %{$self->{MODIFIED_COLUMNS()}} : ();
+  $safe_obj->{MODIFIED_COLUMNS()} = \%orig_modified;
 
   my $expire_in = ($self->meta->cached_objects_expire_in || $class->cached_objects_settings->{expires_in} || 'never');
 

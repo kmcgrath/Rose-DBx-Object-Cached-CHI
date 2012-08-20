@@ -1,5 +1,9 @@
 Revision history for Perl module Rose::DBx::Object::Cached::CHI
 
+0.19 Mon Aug 20 00:28:47 EDT 2012
+    - Keep modified columns from original object
+      when saving to cache
+
 0.17 Sat Nov 14 22:40:49 EST 2009
     - Fix for columns that use aliases.  
       Need to call the column's accessor function
