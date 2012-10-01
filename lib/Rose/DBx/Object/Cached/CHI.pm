@@ -10,11 +10,13 @@ use Rose::DB::Object;
 use Rose::DB::Object::Helpers ();
 use Rose::DB::Object::Cached;
 
+use Data::Dumper;
+
 our @ISA = qw(Rose::DB::Object);
 
 use Rose::DB::Object::Constants qw(STATE_IN_DB MODIFIED_COLUMNS);
 
-our $VERSION = '0.19';
+our $VERSION = '0.20';
 our $SETTINGS = undef;
 our $Debug = 0;
 our $USE_IN_SYNC = 0;
@@ -39,7 +41,7 @@ sub remember
   my($self) = shift;
   my $class = ref $self;
   my $meta = $self->meta;
- 
+
   local $Storable::Deparse = 1;
 
   my $cache = $class->__xrdbopriv_get_cache_handle;
@@ -73,15 +75,15 @@ sub remember
     $cache->set("${class}::Objects_By_Key" . LEVEL_SEP . $key_name . LEVEL_SEP . $key_value, $safe_obj, $expire_in);
 
     $cache->set("${class}::Objects_Keys" . LEVEL_SEP . $pk . LEVEL_SEP . $key_name, $key_value, $expire_in);
-     
+
   }
 
   #my $chi_cache_object = $self->{__xrdbopriv_chi_created_at} = $cache->get_object("${class}::Objects_By_Id" . LEVEL_SEP . $pk);
   if ($Rose::DBx::Object::Cached::CHI::USE_IN_SYNC && $successful_set ) {
     my $chi_cache_object = $self->{__xrdbopriv_chi_created_at} = $cache->get_object("${class}::Objects_By_Id" . LEVEL_SEP . $pk);
     $self->{__xrdbopriv_chi_created_at} = $chi_cache_object->created_at();
-  } 
-  
+  }
+
 };
 
 
@@ -112,10 +114,11 @@ sub __xrdbopriv_get_object
   {
     my($key_name, $key_value) = ($_[1], $_[2]);
 
-    my $rose_object = $cache->get("${class}::Objects_By_Key" . LEVEL_SEP . $key_name . LEVEL_SEP . $key_value);
-    if($rose_object)
+    my $cache_object = $cache->get_object("${class}::Objects_By_Key" . LEVEL_SEP . $key_name . LEVEL_SEP . $key_value);
+    if($cache_object && !$cache_object->is_expired)
     {
-      $rose_object->{__xrdbopriv_chi_created_at} = $cache->get_object("${class}::Objects_By_Key" . LEVEL_SEP . $key_name . LEVEL_SEP . $key_value)->created_at;
+      my $rose_object = $cache_object->value;
+      $rose_object->{__xrdbopriv_chi_created_at} = $cache_object->created_at;
       return $rose_object;
     }
 
@@ -341,7 +344,7 @@ sub default_cached_objects_settings {
 
     return {
         driver => 'Memory',
-	namespace => $class,
+        namespace => $class,
         global => 1
     };
 }
@@ -360,8 +363,8 @@ sub __xrdbopriv_get_cache_handle {
         my $current_settings = $class->cached_objects_settings;
 
         my %chi_settings = (
-            %$defaults, 
-            (%$SETTINGS || ()), 
+            %$defaults,
+            (%$SETTINGS || ()),
             %$current_settings
        );
 
@@ -431,7 +434,7 @@ Rose::DBx::Object::Cached::CHI - Rose::DB::Object Cache using the CHI interface
   $cat2 = Category->new(id => 123);
 
   # This will load from the memory cache, not the database
-  $cat2->load or die $cat2->error; 
+  $cat2->load or die $cat2->error;
 
   ...
 
@@ -467,7 +470,7 @@ Rose::DBx::Object::Cached::CHI - Rose::DB::Object Cache using the CHI interface
 
 
   ## Set cache expire time for all Category objects
-  Category->cached_objects_expire_in('5 seconds'); 
+  Category->cached_objects_expire_in('5 seconds');
 
   ## Set cache expire time for all Rose::DB::Object derived objects
   $Rose::DBx::Object::Cached::CHI::SETTINGS = {
@@ -475,7 +478,7 @@ Rose::DBx::Object::Cached::CHI - Rose::DB::Object Cache using the CHI interface
     expires_in    => '15 minutes',
   };
 
-  <OR> 
+  <OR>
 
   $Rose::DBx::Object::Cached::CHI::SETTINGS = {
     driver     => 'FastMmap',
@@ -484,15 +487,15 @@ Rose::DBx::Object::Cached::CHI - Rose::DB::Object Cache using the CHI interface
   };
 
   ## Any driver for CHI will work.
-  
+
 
 
 =head1 DESCRIPTION
 
-This module intends to extend the caching ability in Rose::DB::Object 
-allowing objects to be cached by any driver that can be used with 
-the CHI interface. This opens the possibility to cache objects across 
-scripts or even servers by opening up methods of caching such as 
+This module intends to extend the caching ability in Rose::DB::Object
+allowing objects to be cached by any driver that can be used with
+the CHI interface. This opens the possibility to cache objects across
+scripts or even servers by opening up methods of caching such as
 FastMmap and memcached.
 
 Most of the code is taken straight from L<Rose::DB::Object::Cached>.
@@ -501,7 +504,7 @@ how the cache is accessed needed to be changed thoughout the code.
 
 =head1 MAJOR DIFFERENCE from L<Rose::DB::Object::Cached>
 
-All objects derived from a L<Rose::DBx::Object::Cached> class are 
+All objects derived from a L<Rose::DBx::Object::Cached> class are
 set and retrieved from CHI, therefore 2 objects that are
 loaded with the same parameters are not the same code reference.
 
@@ -518,7 +521,7 @@ loaded with the same parameters are not the same code reference.
 
   $cat2-> Category->new(id   => 123,
                           name => 'Art');
-     
+
   $cat2->load;
 
   print $cat1->name; # prints "Art"
@@ -534,7 +537,7 @@ loaded with the same parameters are not the same code reference.
 =item  B<In L<Rose::DBx::Object::Cached>>
 
 =over 4
-    
+
   $cat1 = Category->new(id   => 123,
                           name => 'Art');
 
@@ -552,7 +555,7 @@ loaded with the same parameters are not the same code reference.
   print $cat2->name; # prints "Art"
 
 =back
- 
+
 
 =back
 
@@ -604,14 +607,14 @@ If called with no arguments this will return the current cache settings.  PARAMS
 
 =item B<default_cached_objects_settings [PARAMS]>
 
-Returns the default CHI settings for the class.  This method should be implemented by a sub class if custom settings are required. 
+Returns the default CHI settings for the class.  This method should be implemented by a sub class if custom settings are required.
 
 =over 4
 
     package Category;
     use base Rose::DBx::Object::Cached::CHI;
 
-    ... 
+    ...
 
     sub default_cached_objects_settings (
         return {
@@ -703,5 +706,3 @@ perl(1).
 =cut
 
 #################### main pod documentation end ###################
-
-
