@@ -1,5 +1,8 @@
 Revision history for Perl module Rose::DBx::Object::Cached::CHI
 
+0.20 Mon Oct  1 13:51:17 EDT 2012
+    - Fix for calling created_at on undef value
+
 0.19 Mon Aug 20 00:28:47 EDT 2012
     - Keep modified columns from original object
       when saving to cache
