@@ -16,7 +16,7 @@ our @ISA = qw(Rose::DB::Object);
 
 use Rose::DB::Object::Constants qw(STATE_IN_DB MODIFIED_COLUMNS);
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 our $SETTINGS = undef;
 our $Debug = 0;
 our $USE_IN_SYNC = 0;
@@ -99,12 +99,13 @@ sub __xrdbopriv_get_object
   {
     my($pk) = $_[1];
 
-    my $rose_object = $cache->get("${class}::Objects_By_Id" . LEVEL_SEP . $pk);
+    my $cache_object = $cache->get_object("${class}::Objects_By_Id" . LEVEL_SEP . $pk);
 
 
-    if($rose_object)
+    if($cache_object && !$cache_object->is_expired)
     {
-      $rose_object->{__xrdbopriv_chi_created_at} = $cache->get_object("${class}::Objects_By_Id" . LEVEL_SEP . $pk)->created_at;
+      my $rose_object = $cache_object->value;
+      $rose_object->{__xrdbopriv_chi_created_at} = $cache_object->created_at;
       return $rose_object;
     }
 
