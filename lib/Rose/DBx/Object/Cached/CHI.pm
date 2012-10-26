@@ -16,7 +16,7 @@ our @ISA = qw(Rose::DB::Object);
 
 use Rose::DB::Object::Constants qw(STATE_IN_DB MODIFIED_COLUMNS);
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 our $SETTINGS = undef;
 our $Debug = 0;
 our $USE_IN_SYNC = 0;
@@ -57,8 +57,9 @@ sub remember
 
   my $expire_in = ($self->meta->cached_objects_expire_in || $class->cached_objects_settings->{expires_in} || 'never');
 
-  my $successful_set = $cache->set("${class}::Objects_By_Id" . LEVEL_SEP . $pk, $safe_obj,$expire_in);
-
+  my $pk_cache_key = "${class}::Objects_By_Id" . LEVEL_SEP . $pk;
+  my $successful_pk_set = $cache->set($pk_cache_key, $safe_obj,$expire_in);
+  $cache->remove($pk_cache_key) unless $successful_pk_set;
 
   my $accessor = $meta->column_accessor_method_names_hash;
 
@@ -70,16 +71,20 @@ sub remember
     my $key_value = join(UK_SEP, grep { defined($_) ? $_ : UNDEF }
                          map { my $m = $accessor->{$_}; my $colval = $safe_obj->$m();$values_defined++ if defined($colval);$colval } @$cols);
 
-    next unless $values_defined;
+    next unless ($values_defined == @$cols);
 
-    $cache->set("${class}::Objects_By_Key" . LEVEL_SEP . $key_name . LEVEL_SEP . $key_value, $safe_obj, $expire_in);
+    my $ObKey_cache_key = "${class}::Objects_By_Key" . LEVEL_SEP . $key_name . LEVEL_SEP . $key_value;
+    my $ObKeys_cache_key = "${class}::Objects_Keys" . LEVEL_SEP . $pk . LEVEL_SEP . $key_name;
 
-    $cache->set("${class}::Objects_Keys" . LEVEL_SEP . $pk . LEVEL_SEP . $key_name, $key_value, $expire_in);
+    my $successful_set = $cache->set($ObKey_cache_key, $safe_obj, $expire_in);
+    $cache->remove($ObKey_cache_key) unless $successful_set;
+
+    $successful_set = $cache->set("${class}::Objects_Keys" . LEVEL_SEP . $pk . LEVEL_SEP . $key_name, $key_value, $expire_in);
+    $cache->remove($ObKeys_cache_key) unless $successful_set;
 
   }
 
-  #my $chi_cache_object = $self->{__xrdbopriv_chi_created_at} = $cache->get_object("${class}::Objects_By_Id" . LEVEL_SEP . $pk);
-  if ($Rose::DBx::Object::Cached::CHI::USE_IN_SYNC && $successful_set ) {
+  if ($Rose::DBx::Object::Cached::CHI::USE_IN_SYNC && $successful_pk_set ) {
     my $chi_cache_object = $self->{__xrdbopriv_chi_created_at} = $cache->get_object("${class}::Objects_By_Id" . LEVEL_SEP . $pk);
     $self->{__xrdbopriv_chi_created_at} = $chi_cache_object->created_at();
   }

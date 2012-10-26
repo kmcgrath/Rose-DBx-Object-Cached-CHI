@@ -1,5 +1,17 @@
 Revision history for Perl module Rose::DBx::Object::Cached::CHI
 
+0.22 Fri Oct 26 08:41:31 EDT 2012
+    - Make sure cache sets are successful.  If the object cannot
+      be remembered clear it from the cache so that inconsistencies
+      do not exist between saved objects in the DB and the cache.
+
+      An example would be if the size of a new object is too large
+      to store in Memcached and gets rejected without clearing the 
+      previous value.  The new value would be stored in the DB 
+      while the cache value would remain as the old value.
+
+      - For unique key storage all keys must be defined
+
 0.21 Thu Oct  4 19:39:29 EDT 2012
     - Same created_at fix but for Objects by ID
 
